@@ -1,0 +1,94 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 9%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 9%;
+    --primary: 0 0% 9%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 30 10% 95%;
+    --secondary-foreground: 0 0% 9%;
+    --muted: 30 10% 96%;
+    --muted-foreground: 30 3% 45%;
+    --accent: 30 10% 94%;
+    --accent-foreground: 0 0% 9%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 30 8% 91%;
+    --input: 30 8% 88%;
+    --ring: 0 0% 60%;
+    --radius: 0.75rem;
+    --canvas: 40 20% 98.5%;
+    --ok: 142 60% 42%;
+    --warn: 36 92% 50%;
+    --off: 0 0% 70%;
+    --sidebar-background: 40 20% 98.5%;
+    --sidebar-foreground: 0 0% 12%;
+    --sidebar-primary: 0 0% 9%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 30 10% 93%;
+    --sidebar-accent-foreground: 0 0% 9%;
+    --sidebar-border: 30 8% 91%;
+    --sidebar-ring: 0 0% 60%;
+  }
+}
+
+@layer base {
+  * { @apply border-border; }
+  html, body, #root { height: 100%; }
+  body {
+    @apply text-foreground antialiased;
+    background: hsl(var(--canvas));
+    font-family: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-feature-settings: "cv11", "ss01";
+    font-size: 14px;
+    letter-spacing: -0.005em;
+  }
+  .mono { font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: 0; }
+}
+
+@layer utilities {
+  .fade-in { animation: fadeIn .28s ease-out both; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+  .reveal { opacity: 0; animation: reveal .9s cubic-bezier(.2,.7,.1,1) forwards; animation-delay: var(--d, 0ms); }
+  @keyframes reveal { from { opacity: 0; transform: translateY(14px); filter: blur(6px); } to { opacity: 1; transform: none; filter: blur(0); } }
+
+  .word { display: inline-block; opacity: 0; animation: word .8s cubic-bezier(.2,.7,.1,1) forwards; animation-delay: var(--d, 0ms); }
+  @keyframes word { from { opacity: 0; transform: translateY(60%) rotate(2deg); filter: blur(8px); } to { opacity: 1; transform: none; filter: blur(0); } }
+
+  .shimmer-text {
+    background: linear-gradient(100deg, hsl(var(--muted-foreground)) 35%, hsl(var(--foreground)) 50%, hsl(var(--muted-foreground)) 65%);
+    background-size: 250% 100%; -webkit-background-clip: text; background-clip: text; color: transparent;
+    animation: shimmer 5s ease-in-out 1.6s infinite;
+  }
+  @keyframes shimmer { 0% { background-position: 100% 0; } 60%, 100% { background-position: -50% 0; } }
+
+  .float-a { animation: floatY 4.5s ease-in-out infinite; }
+  .float-b { animation: floatY 4.5s ease-in-out 1.2s infinite; }
+  @keyframes floatY { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+
+  .draw-line { transform-origin: left; transform: scaleX(0); animation: drawLine 1s cubic-bezier(.2,.7,.1,1) forwards; animation-delay: var(--d, 0ms); }
+  @keyframes drawLine { to { transform: scaleX(1); } }
+  .draw-line-y { transform-origin: top; transform: scaleY(0); animation: drawLineY 1.2s cubic-bezier(.2,.7,.1,1) forwards; animation-delay: var(--d, 0ms); }
+  @keyframes drawLineY { to { transform: scaleY(1); } }
+
+  .benefit .benefit-icon { transition: transform .35s cubic-bezier(.2,.7,.1,1), box-shadow .35s, background-color .35s, color .35s; }
+  .benefit:hover .benefit-icon { transform: translateY(-2px) scale(1.06); box-shadow: 0 8px 20px -8px rgba(0,0,0,.25); background: hsl(var(--foreground)); color: hsl(var(--background)); }
+  .benefit .benefit-title { transition: transform .35s cubic-bezier(.2,.7,.1,1); }
+  .benefit:hover .benefit-title { transform: translateX(2px); }
+
+  .dot-drift { animation: dotDrift 30s linear infinite; }
+  @keyframes dotDrift { to { background-position: 22px 22px; } }
+
+  @media (prefers-reduced-motion: reduce) {
+    .reveal, .word, .draw-line, .draw-line-y { animation: none; opacity: 1; transform: none; filter: none; }
+    .shimmer-text, .float-a, .float-b, .dot-drift { animation: none; }
+  }
+}

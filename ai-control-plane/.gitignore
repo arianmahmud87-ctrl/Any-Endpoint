@@ -1,0 +1,18 @@
+# Go build output
+backend/bin/
+backend/control-plane
+
+# Local secrets and environment
+.env
+.env.*
+!.env.example
+
+# Local data
+infra/data/
+*.log
+
+# Editors and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

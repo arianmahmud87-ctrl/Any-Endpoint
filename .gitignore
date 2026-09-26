@@ -1,0 +1,25 @@
+# Secrets and local environment
+.env
+.env.*
+!.env.example
+**/*.pem
+**/*.key
+**/auth.json
+**/credentials.json
+
+# Dependencies and generated output
+**/node_modules/
+**/dist/
+**/dist-ssr/
+**/bin/
+**/*.log
+
+# Local data and runtime state
+**/infra/data/
+**/data/
+
+# OS/editor files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
