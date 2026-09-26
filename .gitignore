@@ -12,6 +12,7 @@
 **/dist/
 **/dist-ssr/
 **/bin/
+**/*.exe
 **/*.log
 
 # Local data and runtime state
