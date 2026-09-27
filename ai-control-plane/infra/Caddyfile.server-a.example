@@ -1,0 +1,27 @@
+# Server A: one public origin for frontend, management API, and gateway.
+# Replace anyendpoint.online with the temporary nip.io hostname or final domain.
+anyendpoint.online {
+	@internal path /internal/*
+	respond @internal 404
+
+	# Keep API and health routes ahead of the SPA fallback.
+	@api path /api/* /v1/* /healthz /readyz
+	handle @api {
+		reverse_proxy control-plane:8080
+	}
+
+	handle {
+		root * /srv/frontend
+		try_files {path} /index.html
+		file_server
+	}
+
+	encode gzip
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "no-referrer"
+		X-Frame-Options "DENY"
+		Content-Security-Policy "default-src 'self'; connect-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; frame-ancestors 'none'; base-uri 'self'"
+	}
+}

@@ -28,6 +28,7 @@ type Config struct {
 	SessionTTL           time.Duration
 	OAuthStateTTL        time.Duration
 	EnrollmentTTL        time.Duration
+	ProviderLoginTTL     time.Duration
 	WorkerAllowedHosts   string
 	GatewayMaxConcurrent int
 	GatewayTimeout       time.Duration
@@ -70,6 +71,7 @@ func LoadConfig() (Config, error) {
 		SessionTTL:           envDuration("SESSION_TTL", 12*time.Hour),
 		OAuthStateTTL:        envDuration("OAUTH_STATE_TTL", 10*time.Minute),
 		EnrollmentTTL:        envDuration("WORKER_ENROLLMENT_TTL", 10*time.Minute),
+		ProviderLoginTTL:     envDuration("PROVIDER_LOGIN_TTL", 10*time.Minute),
 		WorkerAllowedHosts:   envString("WORKER_ALLOWED_HOSTS", "127.0.0.1,localhost,worker"),
 		GatewayMaxConcurrent: envInt("GATEWAY_MAX_CONCURRENT", 10),
 		GatewayTimeout:       envDuration("GATEWAY_TIMEOUT", 300*time.Second),
@@ -120,6 +122,9 @@ func (c Config) Validate() error {
 	}
 	if c.EnrollmentTTL <= 0 || c.EnrollmentTTL > 30*time.Minute {
 		return fmt.Errorf("WORKER_ENROLLMENT_TTL must be between 1 and 30 minutes")
+	}
+	if c.ProviderLoginTTL <= 0 || c.ProviderLoginTTL > 30*time.Minute {
+		return fmt.Errorf("PROVIDER_LOGIN_TTL must be between 1 and 30 minutes")
 	}
 	if c.GatewayMaxConcurrent < 1 || c.GatewayMaxConcurrent > 10000 {
 		return fmt.Errorf("GATEWAY_MAX_CONCURRENT must be between 1 and 10000")

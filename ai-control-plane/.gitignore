@@ -6,9 +6,11 @@ backend/control-plane
 .env
 .env.*
 !.env.example
+!.env.server-a.example
 
 # Local data
 infra/data/
+infra/secrets/
 *.log
 
 # Editors and OS

@@ -123,6 +123,10 @@ func (s *server) internalWorkerRoute(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		writeJSON(w, http.StatusCreated, map[string]any{"worker_token": raw, "profile_id": profileID, "provider": provider, "warning": "Store this worker token only in the isolated worker runtime."})
+	case r.URL.Path == "/internal/worker/commands" && r.Method == http.MethodGet:
+		s.internalWorkerCommands(w, r)
+	case r.URL.Path == "/internal/worker/events" && r.Method == http.MethodPost:
+		s.internalWorkerEvents(w, r)
 	case r.URL.Path == "/internal/worker/heartbeat" && r.Method == http.MethodPost:
 		token := workerToken(r)
 		if token == "" {

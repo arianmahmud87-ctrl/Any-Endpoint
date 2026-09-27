@@ -30,3 +30,11 @@ For local Compose, files are mounted into PostgreSQL's initialization directory.
 ## Phase 6
 
 No new schema is required for the Phase 6 operations foundation. It consumes the existing tenant-scoped `usage_events`, `audit_events`, `provider_profiles`, `worker_runtimes`, and `api_keys` tables. A production deployment still needs a reviewed retention/partition job for usage and audit growth; this phase only caps API result size.
+
+## Phase 7 — provider login attempts
+
+`000007_public_provider_login.sql` adds the organization/profile-scoped provider login attempt state used by the direct device-code onboarding flow. It stores only a keyed nonce digest and sanitized lifecycle/failure metadata; provider tokens, device codes, and `auth.json` are not stored in PostgreSQL. Apply it after `000006` with the reviewed production migration procedure and take a backup first.
+
+## Phase 8 — worker commands
+
+`000008_worker_commands.sql` adds the profile-bound, expiring worker command queue used by provider login and health commands. Commands contain only fixed command types and server-generated IDs; provider credentials and device-code challenge values are not stored in PostgreSQL.

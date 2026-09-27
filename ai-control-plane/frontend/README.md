@@ -1,44 +1,15 @@
 # Any Endpoint frontend
 
-Minimal React/TypeScript dashboard for the AI control plane.
+## Control-plane integration
 
-## Local development
+The frontend is configured for the real control-plane by default:
 
-From `ai-control-plane/frontend`:
+- `VITE_PREVIEW_MODE=false` (or unset) uses same-origin API calls;
+- Vite runs on `127.0.0.1:5173` and proxies `/api`, `/v1`, `/healthz`, and `/readyz` to `127.0.0.1:8080`;
+- `/api/me` supplies the HttpOnly-session identity and runtime CSRF token;
+- response adapters unwrap backend list envelopes and normalize nested summary/profile/key shapes;
+- Claude UI values map to the backend `claude_code` provider enum;
+- API-key creation sends explicit profile grants and `expires_at`;
+- playground response handling supports the backend OpenAI Chat Completion response shape.
 
-```powershell
-npm install
-npm run dev
-```
-
-Vite proxies `/api`, `/v1`, `/healthz`, and `/readyz` to the local Go control plane at `http://127.0.0.1:8080`. The UI uses same-origin relative URLs and `credentials: include`; it does not store Google tokens, provider credentials, or durable raw API keys.
-
-## Current screens
-
-- Google sign-in entry
-- Overview metrics and provider health
-- Provider profile creation/connect/reconnect/disable
-- One-time enrollment token copy panel
-- API key create/rotate/revoke with one-time reveal
-- Usage and audit activity tables
-- Operations summary
-- Secure same-origin AI playground with profile/model scope
-
-## Security/accessibility notes
-
-- The session cookie remains server-managed and HttpOnly.
-- The CSRF token from `/api/me` is held in runtime memory only and sent on state-changing requests.
-- Raw generated keys are shown in a transient panel and never persisted by the UI.
-- Model output is not currently rendered because the playground backend is not enabled; future output must be rendered as escaped text, never injected HTML.
-- Buttons, form controls, labels, focus states, responsive navigation, and status text are included for keyboard and screen-reader use.
-- Serve the frontend and API from the same origin in production, or use a strict same-origin reverse-proxy/BFF. Do not add permissive CORS.
-
-
-## Preview mode
-
-For local UI review, `VITE_PREVIEW_MODE` defaults to enabled when unset. It bypasses the login screen and uses in-memory demo data; it does not disable backend authentication. This mode must be disabled in any deployed build:
-
-```powershell
-$env:VITE_PREVIEW_MODE = "false"
-npm run build
-```
+Use `VITE_PREVIEW_MODE=true` only for local visual demos. Do not deploy preview mode.

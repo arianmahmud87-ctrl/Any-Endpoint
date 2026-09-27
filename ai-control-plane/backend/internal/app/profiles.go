@@ -236,6 +236,21 @@ func decodeJSON(r *http.Request, target any) error {
 
 func (s *server) profileSubroute(w http.ResponseWriter, r *http.Request) {
 	parts := strings.Split(strings.TrimPrefix(r.URL.Path, "/api/profiles/"), "/")
+	if len(parts) == 3 && parts[0] != "" && parts[1] == "login" {
+		switch {
+		case parts[2] == "start" && r.Method == http.MethodPost:
+			s.startProviderLogin(w, r, parts[0])
+		case parts[2] == "status" && r.Method == http.MethodGet:
+			s.providerLoginStatus(w, r, parts[0], r.URL.Query().Get("attempt_id"))
+		case parts[2] == "cancel" && r.Method == http.MethodPost:
+			s.cancelProviderLogin(w, r, parts[0], r.URL.Query().Get("attempt_id"))
+		case parts[2] == "retry" && r.Method == http.MethodPost:
+			s.retryProviderLogin(w, r, parts[0], r.URL.Query().Get("attempt_id"))
+		default:
+			writeError(w, http.StatusMethodNotAllowed, "Method not allowed.", "invalid_request_error")
+		}
+		return
+	}
 	if len(parts) == 2 && parts[0] != "" && (parts[1] == "connect" || parts[1] == "disable" || parts[1] == "reconnect") && r.Method == http.MethodPost {
 		if parts[1] == "connect" {
 			s.connectProfile(w, r, parts[0])

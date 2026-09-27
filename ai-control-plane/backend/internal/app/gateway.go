@@ -87,7 +87,7 @@ func (d *database) getWorkerRoute(ctx context.Context, cfg Config, organizationI
 		SELECT p.provider, w.internal_url, w.credential_ciphertext
 		FROM provider_profiles p
 		JOIN worker_runtimes w ON w.provider_profile_id = p.id
-		WHERE p.id = $1 AND p.organization_id = $2 AND p.status <> 'disabled'
+		WHERE p.id = $1 AND p.organization_id = $2 AND p.status = 'ready'
 		  AND w.status = 'online'
 		  AND w.last_heartbeat_at > now() - interval '2 minutes'`, profileID, organizationID).Scan(&route.Provider, &route.InternalURL, &ciphertext)
 	if err != nil {

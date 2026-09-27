@@ -1,6 +1,6 @@
 FROM golang:1.26-alpine AS build
 WORKDIR /src
-COPY backend/go.mod ./backend/
+COPY backend/go.mod backend/go.sum ./backend/
 COPY backend ./backend
 WORKDIR /src/backend
 RUN CGO_ENABLED=0 go build -trimpath -ldflags='-s -w' -o /out/control-plane ./cmd/control-plane

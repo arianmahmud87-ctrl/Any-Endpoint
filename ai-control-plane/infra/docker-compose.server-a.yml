@@ -1,0 +1,101 @@
+# Server A production deployment.
+# Copy ../.env.server-a.example to ../.env and inject real values out-of-band.
+# This file intentionally contains no production secrets.
+services:
+  frontend-build:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_PREVIEW_MODE: "false"
+    command: ["sh", "-c", "rm -rf /srv/frontend/* && cp -R /build/dist/. /srv/frontend/"]
+    volumes:
+      - frontend_dist:/srv/frontend
+    restart: "no"
+
+  control-plane:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile
+    env_file:
+      - ../.env
+    environment:
+      APP_ENV: production
+      HTTP_ADDR: 0.0.0.0:8080
+      INTERNAL_HTTP_ADDR: 0.0.0.0:8081
+    expose:
+      - "8080"
+      - "8081"
+    # Publish the worker-control listener only on the WireGuard interface.
+    # Do not use 0.0.0.0 here.
+    ports:
+      - "${WIREGUARD_CONTROL_PLANE_IP:?Set WIREGUARD_CONTROL_PLANE_IP in .env}:8081:8081"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      frontend-build:
+        condition: service_completed_successfully
+    volumes:
+      - ./secrets:/run/secrets:ro
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2.10-alpine
+    depends_on:
+      control-plane:
+        condition: service_started
+      frontend-build:
+        condition: service_completed_successfully
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile.server-a.example:/etc/caddy/Caddyfile:ro
+      - frontend_dist:/srv/frontend:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?Set POSTGRES_DB in .env}
+      POSTGRES_USER: ${POSTGRES_USER:?Set POSTGRES_USER in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ../db/migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    restart: unless-stopped
+
+volumes:
+  frontend_dist:
+  postgres_data:
+  redis_data:
+  caddy_data:
+  caddy_config:

@@ -2,7 +2,7 @@
 
 Secure, backend-first control plane for the public Codex/Claude Code gateway.
 
-> **Status:** Phase 6 foundation. Google OIDC, server-side sessions, CSRF, organization authorization, provider profile registry, opaque secret references, private worker enrollment, scoped API-key lifecycle, public worker routing, rate/concurrency controls, usage recording, and operations APIs are implemented. Frontend, provider adapters, mTLS, and automated retention jobs are not implemented yet.
+> **Status:** Public multi-user foundation. Google OIDC, server-side sessions, CSRF, organization authorization, provider profile registry, scoped API-key lifecycle, private worker enrollment, mTLS, public worker routing, provider login-attempt state APIs, usage recording, and same-origin frontend deployment are implemented. The worker command channel, Codex device-code runner, per-profile worker provisioning, quotas/billing, and customer-owned worker app remain staged work.
 
 ## Project structure
 
@@ -10,10 +10,10 @@ Secure, backend-first control plane for the public Codex/Claude Code gateway.
 ai-control-plane/
 ├─ backend/       Go API service and security middleware
 ├─ db/migrations/ PostgreSQL schema migrations
-├─ infra/         Docker Compose, Dockerfile, reverse-proxy template
-├─ frontend/      Reserved for the UI after backend authorization APIs stabilize
-├─ worker-agent/  Reserved for isolated provider workers
-└─ docs/          Threat model and security baseline
+├─ infra/         Production Docker Compose, Dockerfile, Caddy configuration
+├─ frontend/      Same-origin React/TypeScript dashboard
+├─ worker-agent/  Profile-bound worker runtime and mTLS client
+└─ docs/          Threat model, security baseline, migration and worker protocols
 ```
 
 ## Run locally
@@ -25,7 +25,7 @@ $env:APP_ENV = "development"
 go run ./backend/cmd/control-plane
 ```
 
-`backend/.env.example` is a reference template; Go does not automatically load `.env` files. For Compose, copy it to the repository root as `.env` or inject equivalent environment variables through your deployment secret manager.
+For local development, run the Go service directly with development dependencies supplied separately. The production deployment is the supported Compose stack described in `docs/SERVER_A_DEPLOYMENT.md`.
 
 ## Endpoints
 
@@ -37,7 +37,10 @@ go run ./backend/cmd/control-plane
 - `GET /api/profiles` — authenticated organization-scoped profile list
 - `POST /api/profiles` — owner/admin creates a Codex or Claude Code profile
 - `GET /api/profiles/{id}` — authenticated organization-scoped profile detail
-- `POST /api/profiles/{id}/connect` — owner/admin creates a one-time worker enrollment token
+- `POST /api/profiles/{id}/login/start` — owner/admin starts a provider login attempt
+- `GET /api/profiles/{id}/login/status?attempt_id=...` — reads a scoped login attempt state
+- `POST /api/profiles/{id}/login/cancel?attempt_id=...` — cancels an active provider login attempt
+- `POST /api/profiles/{id}/login/retry?attempt_id=...` — cancels and starts a replacement attempt
 - `POST /api/profiles/{id}/disable` — revokes worker transport and disables profile
 - `POST /api/profiles/{id}/reconnect` — drains old worker and creates a new enrollment attempt
 - `GET /api/keys` — authenticated key metadata; raw keys are never returned
@@ -76,15 +79,7 @@ $env:KEY_PEPPER = "at-least-32-random-bytes"
 go run ./backend/cmd/control-plane
 ```
 
-For local dependency services:
-
-```powershell
-docker compose -f infra/docker-compose.yml up -d postgres redis
-```
-
-The server uses an opaque `HttpOnly` session cookie. OAuth state, nonce and PKCE verifier are stored server-side in Redis and consumed once. The browser never receives a Google token. The current `/api/me` response supplies a CSRF token for future same-origin management mutations; logout requires that token.
-
-Only the API is intended to be public in production. PostgreSQL and Redis have no host port mapping in Compose. The production reverse-proxy template is `infra/Caddyfile.example`.
+The production deployment uses `infra/docker-compose.server-a.yml` and `infra/Caddyfile.server-a.example`; the live stack serves the frontend and API from the same origin. Apply database migrations separately before upgrades; the PostgreSQL init directory is only for a fresh volume.
 
 ## Production guardrails
 
@@ -97,7 +92,7 @@ Only the API is intended to be public in production. PostgreSQL and Redis have n
 - `AUTH_ENABLED=true`;
 - Google issuer, client ID and runtime-injected client secret;
 - PostgreSQL and Redis URLs, reachable before listener bind;
-- Phase 2 and Phase 3 SQL migrations applied.
+- Phase 2, Phase 3, and provider-login migrations applied;
 
 Provider credentials and public API keys are still intentionally absent. Do not place Codex auth files, Claude credentials, Google tokens, or real secrets in this repository.
 
