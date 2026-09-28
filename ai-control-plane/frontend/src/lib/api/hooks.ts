@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient, type QueryKey } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { api, errorMessage } from "./client";
-import type { ApiKey, Me, Profile, Session, Summary, UsageRow, Worker } from "./types";
+import type { ApiKey, Me, Profile, Session, Summary, UsageRow } from "./types";
 
 const unwrapList = <T,>(value: unknown): T[] => Array.isArray(value) ? value as T[] : ((value as { data?: T[] })?.data ?? []);
 
@@ -59,11 +59,9 @@ const normalizeSummary = (raw: any): Summary => ({
 export const useMe = () => useQuery({ queryKey: ["me"], queryFn: async () => normalizeMe(await api<any>("/api/me")), retry: false, staleTime: 60000 });
 export const useSummary = () => useQuery({ queryKey: ["summary"], queryFn: async () => normalizeSummary(await api<any>("/api/operations/summary")) });
 export const useProfiles = () => useQuery({ queryKey: ["profiles"], queryFn: async () => unwrapList<any>(await api<any>("/api/profiles")).map(normalizeProfile), refetchInterval: 3000 });
-export const useProfile = (id: string) => useQuery({ queryKey: ["profiles", id], queryFn: async () => { const raw = await api<any>(`/api/profiles/${id}`); return normalizeProfile(raw.profile ?? raw); } });
+export const useProfile = (id: string) => useQuery({ queryKey: ["profiles", id], queryFn: async () => { const raw = await api<any>(`/api/profiles/${id}`); return normalizeProfile(raw.profile ?? raw); }, refetchInterval: 3000 });
 export const useKeys = () => useQuery({ queryKey: ["keys"], queryFn: async () => unwrapList<any>(await api<any>("/api/keys")).map(normalizeKey) });
 export const useUsage = (limit = 100) => useQuery({ queryKey: ["usage", limit], queryFn: async () => unwrapList<any>(await api<any>(`/api/usage?limit=${limit}`)).map(normalizeUsage) });
-export const useWorkers = () => useQuery<Worker[]>({ queryKey: ["workers"], queryFn: async () => (await useProfilesSnapshot()).map((p) => ({ agent_id: `agent_${p.id}`, profile_id: p.id, profile_label: p.label, provider: p.provider, state: p.worker_status as Worker["state"], last_heartbeat: p.last_heartbeat, mtls: "unverified", child_ready: p.worker_status === "online" })) });
-async function useProfilesSnapshot(): Promise<Profile[]> { return unwrapList<any>(await api<any>("/api/profiles")).map(normalizeProfile); }
 export const useSessions = () => useQuery<Session[]>({ queryKey: ["sessions"], queryFn: async () => [] });
 
 export function useAction<TVars, TRes = unknown>(toPath: (v: TVars) => string, invalidate: QueryKey[], opts: { body?: (v: TVars) => unknown; success?: string } = {}) {

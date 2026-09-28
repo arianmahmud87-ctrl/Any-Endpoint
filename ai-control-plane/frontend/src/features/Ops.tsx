@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useProfiles, useSessions, useUsage, useWorkers, useAction } from "@/lib/api/hooks";
+import { useProfiles, useSessions, useUsage, useAction } from "@/lib/api/hooks";
 import { useSession } from "@/auth/session";
 import { PREVIEW_MODE } from "@/lib/api/client";
 import { Btn, Dot, Empty, ErrorState, LoadingRows, Page, Table, Tag } from "@/components/kit";
@@ -40,36 +40,27 @@ export function Usage() {
 }
 
 export function Workers() {
-  const q = useWorkers();
-  const p = useProfiles();
+  const q = useProfiles();
   const { me } = useSession();
   const canManage = me?.role === "owner" || me?.role === "admin";
   const a = useProfileActions();
+  const profiles = q.data ?? [];
   return (
-    <Page title="Workers" subtitle="Private agents that hold provider credentials and serve requests.">
-      {q.isLoading ? <LoadingRows /> : q.isError ? <ErrorState error={q.error} retry={q.refetch} /> : !q.data!.length ? <Empty title="No workers" hint="Connect a profile to enroll a worker." /> : (
-        <Table head={["Agent", "Profile", "State", "Heartbeat", "Transport", "Ready", ""]}>
-          {q.data!.map((w) => {
-            const prof = p.data?.find((x) => x.id === w.profile_id);
-            return (
-              <tr key={w.agent_id}>
-                <td className="mono px-4 py-3 text-[12px]">{w.agent_id}</td>
-                <td className="whitespace-nowrap px-4 py-3"><span className="inline-flex items-center gap-2"><ProviderIcon provider={w.provider} size={18} />{w.profile_label}</span></td>
-                <td className="px-4 py-3"><Dot state={w.state} /></td>
-                <td className="whitespace-nowrap px-4 py-3">{relTime(w.last_heartbeat)}</td>
-                <td className="px-4 py-3"><Dot state={w.mtls} label={`mTLS ${w.mtls}`} /></td>
-                <td className="px-4 py-3">{w.child_ready ? "Yes" : "No"}</td>
-                <td className="px-4 py-3">
-                  {canManage && prof && (
-                    <div className="flex justify-end gap-1.5">
-                      <Btn onClick={() => a.doConnect(prof)}>Reconnect</Btn>
-                      {prof.status !== "disabled" && <Btn variant="danger" onClick={() => a.askDisable(prof)}>Disable</Btn>}
-                    </div>
-                  )}
-                </td>
-              </tr>
-            );
-          })}
+    <Page title="Workers" subtitle="Live provisioning and worker health for your private provider profiles.">
+      {q.isLoading ? <LoadingRows /> : q.isError ? <ErrorState error={q.error} retry={q.refetch} /> : !profiles.length ? <Empty title="No workers yet" hint="Add a provider profile to create a private worker automatically." /> : (
+        <Table head={["Profile", "Provisioning", "Worker", "Last heartbeat", ""]}>
+          {profiles.map((profile) => (
+            <tr key={profile.id}>
+              <td className="whitespace-nowrap px-4 py-3"><span className="inline-flex items-center gap-2"><ProviderIcon provider={profile.provider} size={18} />{profile.label}</span></td>
+              <td className="px-4 py-3"><Dot state={profile.provisioning_status.replaceAll("_", " ")} /></td>
+              <td className="px-4 py-3"><Dot state={profile.worker_status.replaceAll("_", " ")} /></td>
+              <td className="whitespace-nowrap px-4 py-3">{relTime(profile.last_heartbeat)}</td>
+              <td className="px-4 py-3">
+                {canManage && profile.provider === "codex" && profile.provisioning_status === "ready" && profile.worker_status === "online" && profile.status !== "disabled" && <Btn onClick={() => a.doLogin(profile)}>Connect Codex</Btn>}
+                {canManage && profile.status !== "disabled" && <Btn variant="danger" onClick={() => a.askDisable(profile)}>Disable</Btn>}
+              </td>
+            </tr>
+          ))}
         </Table>
       )}
       {a.dialogs}

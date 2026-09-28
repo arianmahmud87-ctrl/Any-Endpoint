@@ -1,6 +1,6 @@
 export type Provider = "codex" | "claude";
 export type Role = "owner" | "admin" | "member";
-export type WorkerState = "online" | "stale" | "offline";
+export type WorkerState = "online" | "stale" | "offline" | "draining" | "not_enrolled" | "connecting";
 
 export interface Me {
   user: { id: string; email: string; name: string; avatar_url?: string };
@@ -51,17 +51,6 @@ export interface AuditEvent {
   actor: string;
   target: string;
   created_at: string;
-}
-
-export interface Worker {
-  agent_id: string;
-  profile_id: string;
-  profile_label: string;
-  provider: Provider;
-  state: WorkerState;
-  last_heartbeat: string | null;
-  mtls: "verified" | "unverified";
-  child_ready: boolean;
 }
 
 export interface Summary {
