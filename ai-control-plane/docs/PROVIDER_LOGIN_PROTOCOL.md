@@ -1,6 +1,6 @@
 # Provider login protocol
 
-This document defines the Server A/Server B contract for public multi-user provider onboarding. The current release implements the Server A login-attempt state API; the worker command channel and Codex device-code runner are the next implementation gate.
+This document defines the Server A/Server B contract for public multi-user provider onboarding. Server A implements the login-attempt state API and the mTLS-protected worker command/event channel. Server B must provide the worker poller and provider login runner described below.
 
 ## Security boundary
 
@@ -57,44 +57,74 @@ failed/expired → needs_relogin or pending
 
 A profile is not routable until its provider authentication has been validated and the profile status is `ready`. Worker transport `online` alone is not sufficient.
 
-## Worker command contract (next gate)
+## Worker command contract
 
-Commands must be a fixed enum carried over the existing mTLS private channel:
+Commands are delivered through the existing mTLS private channel. A successful poll returns HTTP 200 with this envelope:
 
 ```json
 {
-  "command_id": "uuid",
-  "type": "provider_login_start",
-  "profile_id": "uuid",
-  "attempt_id": "uuid",
-  "expires_at": "timestamp"
+  "command": {
+    "command_id": "uuid",
+    "type": "provider_login_start",
+    "profile_id": "uuid",
+    "attempt_id": "uuid",
+    "expires_at": "timestamp"
+  }
 }
 ```
 
-Allowed command types are `provider_login_start`, `provider_login_cancel`, `provider_health_check`, and `worker_shutdown`. The worker must reject a command if profile, attempt, organization binding, expiry, or mTLS identity does not match.
+`attempt_id` is omitted when a command has no login attempt. When the authenticated worker has no non-expired queued command, the response is HTTP 204 with an empty body. Invalid or revoked bearer credentials return HTTP 401.
 
-Worker events return sanitized metadata only:
+The current login path creates `provider_login_start`. The command table also reserves `provider_login_cancel`, `provider_health_check`, and `worker_shutdown`; Server B must not execute those types until their behavior is explicitly enabled by Server A.
+
+Worker events return sanitized metadata only. The accepted request fields are exactly:
 
 ```json
 {
   "command_id": "uuid",
   "attempt_id": "uuid",
   "state": "awaiting_authorization",
-  "authorization_url": "https://provider.example/device",
+  "authorization_url": "https://auth.openai.com/...",
   "user_code": "short-lived-code",
-  "expires_at": "timestamp"
+  "failure_code": "optional-code",
+  "failure_message": "optional-message"
 }
 ```
 
-`user_code` is short-lived sensitive data: do not persist it in PostgreSQL, logs, analytics, or browser storage. The frontend may hold it in memory until the attempt completes or expires.
+Unknown JSON fields are rejected. `expires_at` is not an accepted event field; the attempt expiry is controlled by Server A. A valid event returns HTTP 202:
+
+```json
+{"status":"accepted"}
+```
+
+The event URL, when supplied, must be HTTPS on `auth.openai.com`, without credentials, query, or fragment. `user_code` is limited to 64 alphanumeric, hyphen, or underscore characters. `user_code` is short-lived sensitive data: do not persist it in PostgreSQL, logs, analytics, or browser storage. The frontend may hold it in memory until the attempt completes or expires.
 
 ## Internal worker endpoints
 
 The mTLS-protected internal listener exposes:
 
 ```text
+POST /internal/worker/enroll
 GET  /internal/worker/commands
 POST /internal/worker/events
+POST /internal/worker/heartbeat
 ```
 
-A worker polls commands with its profile-bound worker bearer token. An event request must include the command ID, attempt ID, fixed lifecycle state, and only sanitized challenge/failure metadata. Invalid worker credentials are rejected with `401`; an authenticated worker with no queued command receives `204`.
+`/internal/worker/enroll` consumes a one-time enrollment token and returns a one-time profile-bound `worker_token`. Subsequent command, event, and heartbeat requests require both the mTLS client certificate and:
+
+```http
+Authorization: Bearer <worker_token>
+```
+
+A worker polls commands with its profile-bound token. An event request must include the command ID, attempt ID, fixed lifecycle state, and only sanitized challenge/failure metadata. Invalid worker credentials are rejected with `401`; an authenticated worker with no queued command receives `204`. The worker must fail closed on token or certificate failure and must not substitute a public endpoint for the private listener.
+
+## Automatic worker provisioning
+
+When enabled by `WORKER_PROVISIONING_ENABLED=true`, profile creation creates an encrypted, short-lived provisioning job. The browser receives no enrollment token. A Server B bootstrap provisioner claims jobs over the private mTLS listener using the separate `WORKER_PROVISIONING_TOKEN` bearer credential:
+
+```text
+GET /internal/worker/provisioning/jobs
+POST /internal/worker/provisioning/jobs/{job_id}
+```
+
+A claimed job contains only the profile/provider binding, a one-time enrollment token, and expiry. The provisioner injects the token into an isolated worker and calls `POST /internal/worker/enroll`; successful enrollment marks the job ready. The provisioner must not log, persist, or return the token to a browser. A failed job may be reported with state `failed` and sanitized failure metadata. This is a bootstrap contract for Server B and is separate from the profile-bound command/event token.

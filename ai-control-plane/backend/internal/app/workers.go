@@ -73,6 +73,12 @@ func (d *database) enrollWorker(ctx context.Context, cfg Config, request workerE
 	if _, err := tx.Exec(ctx, `UPDATE provider_profiles SET status = 'connecting', updated_at = now() WHERE id = $1`, profileID); err != nil {
 		return "", "", "", err
 	}
+	if _, err := tx.Exec(ctx, `
+		UPDATE worker_provisioning_jobs
+		SET status = 'ready', completed_at = now(), updated_at = now()
+		WHERE provider_profile_id = $1 AND status IN ('pending', 'claimed')`, profileID); err != nil {
+		return "", "", "", err
+	}
 	if err := tx.Commit(ctx); err != nil {
 		return "", "", "", err
 	}
@@ -127,6 +133,8 @@ func (s *server) internalWorkerRoute(w http.ResponseWriter, r *http.Request) {
 		s.internalWorkerCommands(w, r)
 	case r.URL.Path == "/internal/worker/events" && r.Method == http.MethodPost:
 		s.internalWorkerEvents(w, r)
+	case strings.HasPrefix(r.URL.Path, "/internal/worker/provisioning/jobs") && (r.Method == http.MethodGet || r.Method == http.MethodPost):
+		s.internalWorkerProvisioning(w, r)
 	case r.URL.Path == "/internal/worker/heartbeat" && r.Method == http.MethodPost:
 		token := workerToken(r)
 		if token == "" {

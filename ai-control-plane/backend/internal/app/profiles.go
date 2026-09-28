@@ -12,15 +12,16 @@ import (
 )
 
 type providerProfile struct {
-	ID            string     `json:"id"`
-	Provider      string     `json:"provider"`
-	Label         string     `json:"label"`
-	Status        string     `json:"status"`
-	AllowedModels []string   `json:"allowed_models"`
-	CreatedAt     time.Time  `json:"created_at"`
-	UpdatedAt     time.Time  `json:"updated_at"`
-	WorkerStatus  string     `json:"worker_status"`
-	LastHeartbeat *time.Time `json:"last_heartbeat"`
+	ID                 string     `json:"id"`
+	Provider           string     `json:"provider"`
+	Label              string     `json:"label"`
+	Status             string     `json:"status"`
+	AllowedModels      []string   `json:"allowed_models"`
+	CreatedAt          time.Time  `json:"created_at"`
+	UpdatedAt          time.Time  `json:"updated_at"`
+	WorkerStatus       string     `json:"worker_status"`
+	ProvisioningStatus string     `json:"provisioning_status"`
+	LastHeartbeat      *time.Time `json:"last_heartbeat"`
 }
 
 type createProfileRequest struct {
@@ -32,9 +33,11 @@ type createProfileRequest struct {
 func (d *database) listProfiles(ctx context.Context, organizationID string) ([]providerProfile, error) {
 	rows, err := d.pool.Query(ctx, `
 		SELECT p.id::text, p.provider, p.label, p.status, p.allowed_models,
-		       p.created_at, p.updated_at, COALESCE(w.status, 'not_enrolled'), w.last_heartbeat_at
+		       p.created_at, p.updated_at, COALESCE(w.status, 'not_enrolled'),
+		       COALESCE(j.status, 'not_configured'), w.last_heartbeat_at
 		FROM provider_profiles p
 		LEFT JOIN worker_runtimes w ON w.provider_profile_id = p.id
+		LEFT JOIN worker_provisioning_jobs j ON j.provider_profile_id = p.id
 		WHERE p.organization_id = $1
 		ORDER BY p.created_at DESC`, organizationID)
 	if err != nil {
@@ -45,7 +48,7 @@ func (d *database) listProfiles(ctx context.Context, organizationID string) ([]p
 	for rows.Next() {
 		var profile providerProfile
 		var models []byte
-		if err := rows.Scan(&profile.ID, &profile.Provider, &profile.Label, &profile.Status, &models, &profile.CreatedAt, &profile.UpdatedAt, &profile.WorkerStatus, &profile.LastHeartbeat); err != nil {
+		if err := rows.Scan(&profile.ID, &profile.Provider, &profile.Label, &profile.Status, &models, &profile.CreatedAt, &profile.UpdatedAt, &profile.WorkerStatus, &profile.ProvisioningStatus, &profile.LastHeartbeat); err != nil {
 			return nil, err
 		}
 		if len(models) > 0 && string(models) != "null" {
@@ -58,7 +61,7 @@ func (d *database) listProfiles(ctx context.Context, organizationID string) ([]p
 	return profiles, rows.Err()
 }
 
-func (d *database) createProfile(ctx context.Context, organizationID, actorID string, request createProfileRequest, secretBackend string) (providerProfile, error) {
+func (d *database) createProfile(ctx context.Context, organizationID, actorID string, request createProfileRequest, cfg Config) (providerProfile, error) {
 	provider := strings.TrimSpace(request.Provider)
 	label := strings.TrimSpace(request.Label)
 	if provider != "codex" && provider != "claude_code" {
@@ -70,6 +73,18 @@ func (d *database) createProfile(ctx context.Context, organizationID, actorID st
 	models, err := json.Marshal(normalizeModels(request.AllowedModels))
 	if err != nil {
 		return providerProfile{}, err
+	}
+	var enrollmentRaw string
+	var enrollmentCiphertext []byte
+	if cfg.WorkerProvisioningEnabled {
+		enrollmentRaw, err = randomURLValue(32)
+		if err != nil {
+			return providerProfile{}, err
+		}
+		enrollmentCiphertext, err = encryptSecret(cfg.KeyPepper, "enroll_"+enrollmentRaw)
+		if err != nil {
+			return providerProfile{}, err
+		}
 	}
 	tx, err := d.pool.Begin(ctx)
 	if err != nil {
@@ -94,16 +109,39 @@ func (d *database) createProfile(ctx context.Context, organizationID, actorID st
 	if err := tx.QueryRow(ctx, `
 		INSERT INTO secret_references (provider_profile_id, backend, external_ref)
 		VALUES ($1, $2, $3)
-		RETURNING id::text`, profile.ID, normalizeSecretBackend(secretBackend), externalRef).Scan(&secretID); err != nil {
+		RETURNING id::text`, profile.ID, normalizeSecretBackend(cfg.SecretBackend), externalRef).Scan(&secretID); err != nil {
 		return providerProfile{}, fmt.Errorf("create secret reference: %w", err)
 	}
 	if _, err := tx.Exec(ctx, `UPDATE provider_profiles SET secret_reference_id = $1 WHERE id = $2`, secretID, profile.ID); err != nil {
 		return providerProfile{}, fmt.Errorf("link secret reference: %w", err)
 	}
+	if cfg.WorkerProvisioningEnabled {
+		expires := time.Now().Add(cfg.EnrollmentTTL)
+		if _, err := tx.Exec(ctx, `
+			INSERT INTO connection_attempts (provider_profile_id, token_digest, created_by, expires_at)
+			VALUES ($1, $2, $3, $4)`, profile.ID, keyedDigest(cfg.KeyPepper, []byte(enrollmentRaw)), actorID, expires); err != nil {
+			return providerProfile{}, fmt.Errorf("create automatic enrollment attempt: %w", err)
+		}
+		if _, err := tx.Exec(ctx, `
+			INSERT INTO worker_provisioning_jobs
+				(provider_profile_id, organization_id, provider, enrollment_token_ciphertext, expires_at)
+			VALUES ($1, $2, $3, $4, $5)`, profile.ID, organizationID, provider, enrollmentCiphertext, expires); err != nil {
+			return providerProfile{}, fmt.Errorf("create worker provisioning job: %w", err)
+		}
+		if _, err := tx.Exec(ctx, `UPDATE provider_profiles SET status = 'connecting', updated_at = now() WHERE id = $1`, profile.ID); err != nil {
+			return providerProfile{}, fmt.Errorf("mark profile provisioning: %w", err)
+		}
+		profile.Status = "connecting"
+	}
 	if err := tx.Commit(ctx); err != nil {
 		return providerProfile{}, err
 	}
 	profile.WorkerStatus = "not_enrolled"
+	if cfg.WorkerProvisioningEnabled {
+		profile.ProvisioningStatus = "pending"
+	} else {
+		profile.ProvisioningStatus = "not_configured"
+	}
 	return profile, nil
 }
 
@@ -191,7 +229,7 @@ func (s *server) profiles(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "Invalid profile request.", "invalid_request_error")
 		return
 	}
-	profile, err := s.db.createProfile(r.Context(), p.OrganizationID, p.UserID, request, s.cfg.SecretBackend)
+	profile, err := s.db.createProfile(r.Context(), p.OrganizationID, p.UserID, request, s.cfg)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error(), "invalid_request_error")
 		return
@@ -206,6 +244,10 @@ func (s *server) connectProfile(w http.ResponseWriter, r *http.Request, profileI
 	}
 	if p.Role != "owner" && p.Role != "admin" {
 		writeError(w, http.StatusForbidden, "Organization administrator access required.", "authorization_error")
+		return
+	}
+	if s.cfg.WorkerProvisioningEnabled {
+		writeError(w, http.StatusConflict, "Automatic worker provisioning is enabled; manual enrollment is not required.", "invalid_request_error")
 		return
 	}
 	token, expires, err := s.db.createConnectionAttempt(r.Context(), s.cfg, p.OrganizationID, p.UserID, profileID)

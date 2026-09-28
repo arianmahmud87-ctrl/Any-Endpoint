@@ -38,3 +38,7 @@ No new schema is required for the Phase 6 operations foundation. It consumes the
 ## Phase 8 — worker commands
 
 `000008_worker_commands.sql` adds the profile-bound, expiring worker command queue used by provider login and health commands. Commands contain only fixed command types and server-generated IDs; provider credentials and device-code challenge values are not stored in PostgreSQL.
+
+## 000009 — automatic worker provisioning
+
+`000009_worker_provisioning.sql` creates the encrypted worker provisioning outbox. It stores only the encrypted one-time enrollment token, profile/provider binding, lease status, expiry, and sanitized failure metadata. Apply this additive migration before enabling `WORKER_PROVISIONING_ENABLED`; existing databases are not upgraded automatically by Compose startup.

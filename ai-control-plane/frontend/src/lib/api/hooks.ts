@@ -20,6 +20,7 @@ const normalizeProfile = (raw: any): Profile => ({
   allowed_models: raw.allowed_models ?? raw.AllowedModels ?? [],
   status: raw.status ?? raw.Status,
   worker_status: raw.worker_status ?? raw.WorkerStatus ?? "offline",
+  provisioning_status: raw.provisioning_status ?? raw.ProvisioningStatus ?? "not_configured",
   last_heartbeat: raw.last_heartbeat ?? raw.LastHeartbeat ?? null,
   secret_ref_status: raw.secret_ref_status ?? "bound",
 });
@@ -57,7 +58,7 @@ const normalizeSummary = (raw: any): Summary => ({
 
 export const useMe = () => useQuery({ queryKey: ["me"], queryFn: async () => normalizeMe(await api<any>("/api/me")), retry: false, staleTime: 60000 });
 export const useSummary = () => useQuery({ queryKey: ["summary"], queryFn: async () => normalizeSummary(await api<any>("/api/operations/summary")) });
-export const useProfiles = () => useQuery({ queryKey: ["profiles"], queryFn: async () => unwrapList<any>(await api<any>("/api/profiles")).map(normalizeProfile) });
+export const useProfiles = () => useQuery({ queryKey: ["profiles"], queryFn: async () => unwrapList<any>(await api<any>("/api/profiles")).map(normalizeProfile), refetchInterval: 3000 });
 export const useProfile = (id: string) => useQuery({ queryKey: ["profiles", id], queryFn: async () => { const raw = await api<any>(`/api/profiles/${id}`); return normalizeProfile(raw.profile ?? raw); } });
 export const useKeys = () => useQuery({ queryKey: ["keys"], queryFn: async () => unwrapList<any>(await api<any>("/api/keys")).map(normalizeKey) });
 export const useUsage = (limit = 100) => useQuery({ queryKey: ["usage", limit], queryFn: async () => unwrapList<any>(await api<any>(`/api/usage?limit=${limit}`)).map(normalizeUsage) });

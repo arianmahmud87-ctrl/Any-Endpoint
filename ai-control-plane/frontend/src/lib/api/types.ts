@@ -17,6 +17,7 @@ export interface Profile {
   allowed_models: string[];
   status: "active" | "pending" | "disabled";
   worker_status: WorkerState;
+  provisioning_status: "pending" | "claimed" | "ready" | "failed" | "expired" | "not_configured";
   last_heartbeat: string | null;
   secret_ref_status: "bound" | "missing";
 }

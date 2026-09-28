@@ -10,41 +10,43 @@ import (
 )
 
 type Config struct {
-	Environment          string
-	HTTPAddr             string
-	InternalHTTPAddr     string
-	PublicBaseURL        string
-	TrustProxy           string
-	DatabaseURL          string
-	RedisURL             string
-	SessionSecret        string
-	KeyPepper            string
-	SecretBackend        string
-	AuthEnabled          bool
-	GoogleIssuerURL      string
-	GoogleClientID       string
-	GoogleClientSecret   string
-	SessionCookieName    string
-	SessionTTL           time.Duration
-	OAuthStateTTL        time.Duration
-	EnrollmentTTL        time.Duration
-	ProviderLoginTTL     time.Duration
-	WorkerAllowedHosts   string
-	GatewayMaxConcurrent int
-	GatewayTimeout       time.Duration
-	PlaygroundRPM        int
-	MTLSEnabled          bool
-	MTLSCAFile           string
-	MTLSServerCertFile   string
-	MTLSServerKeyFile    string
-	MTLSClientCertFile   string
-	MTLSClientKeyFile    string
-	ReadHeaderTimeout    time.Duration
-	ReadTimeout          time.Duration
-	WriteTimeout         time.Duration
-	IdleTimeout          time.Duration
-	ShutdownTimeout      time.Duration
-	MaxBodyBytes         int64
+	Environment               string
+	HTTPAddr                  string
+	InternalHTTPAddr          string
+	PublicBaseURL             string
+	TrustProxy                string
+	DatabaseURL               string
+	RedisURL                  string
+	SessionSecret             string
+	KeyPepper                 string
+	SecretBackend             string
+	AuthEnabled               bool
+	GoogleIssuerURL           string
+	GoogleClientID            string
+	GoogleClientSecret        string
+	SessionCookieName         string
+	SessionTTL                time.Duration
+	OAuthStateTTL             time.Duration
+	EnrollmentTTL             time.Duration
+	ProviderLoginTTL          time.Duration
+	WorkerAllowedHosts        string
+	WorkerProvisioningEnabled bool
+	WorkerProvisioningToken   string
+	GatewayMaxConcurrent      int
+	GatewayTimeout            time.Duration
+	PlaygroundRPM             int
+	MTLSEnabled               bool
+	MTLSCAFile                string
+	MTLSServerCertFile        string
+	MTLSServerKeyFile         string
+	MTLSClientCertFile        string
+	MTLSClientKeyFile         string
+	ReadHeaderTimeout         time.Duration
+	ReadTimeout               time.Duration
+	WriteTimeout              time.Duration
+	IdleTimeout               time.Duration
+	ShutdownTimeout           time.Duration
+	MaxBodyBytes              int64
 }
 
 func LoadConfig() (Config, error) {
@@ -53,41 +55,43 @@ func LoadConfig() (Config, error) {
 		cookieName = "__Host-cp_session"
 	}
 	cfg := Config{
-		Environment:          envString("APP_ENV", "development"),
-		HTTPAddr:             envString("HTTP_ADDR", "127.0.0.1:8080"),
-		InternalHTTPAddr:     envString("INTERNAL_HTTP_ADDR", "127.0.0.1:8081"),
-		PublicBaseURL:        envString("PUBLIC_BASE_URL", "http://127.0.0.1:8080"),
-		TrustProxy:           strings.TrimSpace(os.Getenv("TRUST_PROXY")),
-		DatabaseURL:          strings.TrimSpace(os.Getenv("DATABASE_URL")),
-		RedisURL:             strings.TrimSpace(os.Getenv("REDIS_URL")),
-		SessionSecret:        os.Getenv("SESSION_SECRET"),
-		KeyPepper:            os.Getenv("KEY_PEPPER"),
-		SecretBackend:        envString("SECRET_BACKEND", "local"),
-		AuthEnabled:          envBool("AUTH_ENABLED", false),
-		GoogleIssuerURL:      envString("GOOGLE_ISSUER_URL", "https://accounts.google.com"),
-		GoogleClientID:       strings.TrimSpace(os.Getenv("GOOGLE_CLIENT_ID")),
-		GoogleClientSecret:   os.Getenv("GOOGLE_CLIENT_SECRET"),
-		SessionCookieName:    envString("SESSION_COOKIE_NAME", cookieName),
-		SessionTTL:           envDuration("SESSION_TTL", 12*time.Hour),
-		OAuthStateTTL:        envDuration("OAUTH_STATE_TTL", 10*time.Minute),
-		EnrollmentTTL:        envDuration("WORKER_ENROLLMENT_TTL", 10*time.Minute),
-		ProviderLoginTTL:     envDuration("PROVIDER_LOGIN_TTL", 10*time.Minute),
-		WorkerAllowedHosts:   envString("WORKER_ALLOWED_HOSTS", "127.0.0.1,localhost,worker"),
-		GatewayMaxConcurrent: envInt("GATEWAY_MAX_CONCURRENT", 10),
-		GatewayTimeout:       envDuration("GATEWAY_TIMEOUT", 300*time.Second),
-		PlaygroundRPM:        envInt("PLAYGROUND_REQUESTS_PER_MINUTE", 10),
-		MTLSEnabled:          envBool("MTLS_ENABLED", false),
-		MTLSCAFile:           strings.TrimSpace(os.Getenv("MTLS_CA_FILE")),
-		MTLSServerCertFile:   strings.TrimSpace(os.Getenv("MTLS_SERVER_CERT_FILE")),
-		MTLSServerKeyFile:    strings.TrimSpace(os.Getenv("MTLS_SERVER_KEY_FILE")),
-		MTLSClientCertFile:   strings.TrimSpace(os.Getenv("MTLS_CLIENT_CERT_FILE")),
-		MTLSClientKeyFile:    strings.TrimSpace(os.Getenv("MTLS_CLIENT_KEY_FILE")),
-		ReadHeaderTimeout:    envDuration("READ_HEADER_TIMEOUT", 10*time.Second),
-		ReadTimeout:          envDuration("READ_TIMEOUT", 30*time.Second),
-		WriteTimeout:         envDuration("WRITE_TIMEOUT", 60*time.Second),
-		IdleTimeout:          envDuration("IDLE_TIMEOUT", 120*time.Second),
-		ShutdownTimeout:      envDuration("SHUTDOWN_TIMEOUT", 15*time.Second),
-		MaxBodyBytes:         envInt64("MAX_BODY_BYTES", 4<<20),
+		Environment:               envString("APP_ENV", "development"),
+		HTTPAddr:                  envString("HTTP_ADDR", "127.0.0.1:8080"),
+		InternalHTTPAddr:          envString("INTERNAL_HTTP_ADDR", "127.0.0.1:8081"),
+		PublicBaseURL:             envString("PUBLIC_BASE_URL", "http://127.0.0.1:8080"),
+		TrustProxy:                strings.TrimSpace(os.Getenv("TRUST_PROXY")),
+		DatabaseURL:               strings.TrimSpace(os.Getenv("DATABASE_URL")),
+		RedisURL:                  strings.TrimSpace(os.Getenv("REDIS_URL")),
+		SessionSecret:             os.Getenv("SESSION_SECRET"),
+		KeyPepper:                 os.Getenv("KEY_PEPPER"),
+		SecretBackend:             envString("SECRET_BACKEND", "local"),
+		AuthEnabled:               envBool("AUTH_ENABLED", false),
+		GoogleIssuerURL:           envString("GOOGLE_ISSUER_URL", "https://accounts.google.com"),
+		GoogleClientID:            strings.TrimSpace(os.Getenv("GOOGLE_CLIENT_ID")),
+		GoogleClientSecret:        os.Getenv("GOOGLE_CLIENT_SECRET"),
+		SessionCookieName:         envString("SESSION_COOKIE_NAME", cookieName),
+		SessionTTL:                envDuration("SESSION_TTL", 12*time.Hour),
+		OAuthStateTTL:             envDuration("OAUTH_STATE_TTL", 10*time.Minute),
+		EnrollmentTTL:             envDuration("WORKER_ENROLLMENT_TTL", 10*time.Minute),
+		ProviderLoginTTL:          envDuration("PROVIDER_LOGIN_TTL", 10*time.Minute),
+		WorkerAllowedHosts:        envString("WORKER_ALLOWED_HOSTS", "127.0.0.1,localhost,worker"),
+		WorkerProvisioningEnabled: envBool("WORKER_PROVISIONING_ENABLED", false),
+		WorkerProvisioningToken:   strings.TrimSpace(os.Getenv("WORKER_PROVISIONING_TOKEN")),
+		GatewayMaxConcurrent:      envInt("GATEWAY_MAX_CONCURRENT", 10),
+		GatewayTimeout:            envDuration("GATEWAY_TIMEOUT", 300*time.Second),
+		PlaygroundRPM:             envInt("PLAYGROUND_REQUESTS_PER_MINUTE", 10),
+		MTLSEnabled:               envBool("MTLS_ENABLED", false),
+		MTLSCAFile:                strings.TrimSpace(os.Getenv("MTLS_CA_FILE")),
+		MTLSServerCertFile:        strings.TrimSpace(os.Getenv("MTLS_SERVER_CERT_FILE")),
+		MTLSServerKeyFile:         strings.TrimSpace(os.Getenv("MTLS_SERVER_KEY_FILE")),
+		MTLSClientCertFile:        strings.TrimSpace(os.Getenv("MTLS_CLIENT_CERT_FILE")),
+		MTLSClientKeyFile:         strings.TrimSpace(os.Getenv("MTLS_CLIENT_KEY_FILE")),
+		ReadHeaderTimeout:         envDuration("READ_HEADER_TIMEOUT", 10*time.Second),
+		ReadTimeout:               envDuration("READ_TIMEOUT", 30*time.Second),
+		WriteTimeout:              envDuration("WRITE_TIMEOUT", 60*time.Second),
+		IdleTimeout:               envDuration("IDLE_TIMEOUT", 120*time.Second),
+		ShutdownTimeout:           envDuration("SHUTDOWN_TIMEOUT", 15*time.Second),
+		MaxBodyBytes:              envInt64("MAX_BODY_BYTES", 4<<20),
 	}
 	if err := cfg.Validate(); err != nil {
 		return Config{}, err
@@ -163,6 +167,14 @@ func (c Config) Validate() error {
 	if c.RedisURL != "" {
 		if err := validateURL(c.RedisURL, "redis", "rediss"); err != nil {
 			return fmt.Errorf("REDIS_URL: %w", err)
+		}
+	}
+	if c.WorkerProvisioningEnabled {
+		if len([]byte(c.WorkerProvisioningToken)) < 32 {
+			return fmt.Errorf("WORKER_PROVISIONING_ENABLED requires WORKER_PROVISIONING_TOKEN of at least 32 bytes")
+		}
+		if !c.MTLSEnabled {
+			return fmt.Errorf("WORKER_PROVISIONING_ENABLED requires MTLS_ENABLED=true")
 		}
 	}
 	if c.MTLSEnabled {
